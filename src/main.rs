@@ -38,7 +38,8 @@ Created by Zoltan Kovari, 2024.
 const HELP: &str = "Run with '-h' option to display help.";
 
 
-use std::io::prelude::*;
+use std::io::BufRead;
+use std::fs::File;
 use chrono::prelude::*;
 
 
@@ -225,11 +226,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    /* Setup done, lib call */
+    /* Setup output file writer
+        TODO command line option? */
 
+    let output = File::create("output.json")?;
+
+    /* Config done, lib call */
+    //TODO bring out the output stream
     yt_api_videosum::run(
         yt_api_videosum::Config {
             key,
+            channel_name,
             start_date: match start_date {
                 OptionalDate::Date(d) => Some(d),
                 _ => None
@@ -238,7 +245,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 OptionalDate::Date(d) => Some(d),
                 _ => None
             },
-            channel_name,
+            output: Some(output)
         }
     )
 }
