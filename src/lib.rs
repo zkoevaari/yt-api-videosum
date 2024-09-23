@@ -73,11 +73,11 @@ pub fn run(mut config: Config) -> Result<(), Box<dyn Error>> {
 
     let mut video_ids = Vec::<String>::new();
     let mut page = 1;
-    let mut next_page_token = String::new();
+    let mut next_page_token: Option<String> = None;
     let mut total_results;
     loop {
-        let addr = format!("https://youtube.googleapis.com/youtube/v3/playlistItems?part=id%2Csnippet&playlistId={}&maxResults=8&nextPageToken={}&key={}",
-            playlist_id, next_page_token, config.key);
+        let addr = format!("https://youtube.googleapis.com/youtube/v3/playlistItems?part=id%2Csnippet&playlistId={}&maxResults=8&pageToken={}&key={}",
+            playlist_id, next_page_token.unwrap_or(String::new()), config.key);
 
         let json = request(&addr)?;
         write_out(&mut config.output, &json)?;
@@ -96,11 +96,12 @@ pub fn run(mut config: Config) -> Result<(), Box<dyn Error>> {
             );
         }
 
-        next_page_token = json.get("nextPageToken")
-            .ok_or("Could not find 'nextPageToken' field")?
-            .as_str()
-            .ok_or("Invalid 'nextPageToken' format")?
-            .to_string();
+        next_page_token = match json.get("nextPageToken") {
+            Some(v) => Some(v.as_str()
+                .ok_or("Invalid 'nextPageToken' format")?
+                .to_string()),
+            None => None
+        };
 
         total_results = json.pointer("/pageInfo/totalResults")
             .ok_or("Could not find 'totalResults' field")?
@@ -109,7 +110,7 @@ pub fn run(mut config: Config) -> Result<(), Box<dyn Error>> {
 
         print!("Page #{}: {} items", page, array.len());
 
-        if array.is_empty() || next_page_token.is_empty() || video_ids.len()>=total_results.try_into()? {
+        if array.is_empty() || next_page_token.is_none() || video_ids.len()>=total_results.try_into()? {
             println!("");
             break;
         } else {
@@ -117,7 +118,7 @@ pub fn run(mut config: Config) -> Result<(), Box<dyn Error>> {
             page += 1;
         };
     }
-    println!("Res={}, len={}, token={}", total_results, video_ids.len(), !next_page_token.is_empty());
+    println!("Res={}, len={}, token={}", total_results, video_ids.len(), !next_page_token.is_some());
 
     println!("Querying video info...");
 
