@@ -229,7 +229,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     /* Setup output file writer
         TODO command line option? */
 
-    let output = File::create("output.json")?;
+    let output = File::create("output.txt")?;
 
     /* Config done, lib call */
     //TODO bring out the output stream
