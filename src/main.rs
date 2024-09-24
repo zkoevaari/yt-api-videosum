@@ -32,6 +32,12 @@ Parameters:
 channel_name  Human-readable name of the channel, with or without the
                 '@' prefix. If omitted, it will be asked interactively.
 
+Output:
+Aggregated total of video duration is displayed interactively.
+Also a full list of the videos are saved to 'output.txt' in CSV format, or
+in case the process could not complete, it will contain the last immediate
+JSON response to help figuring out what went wrong.
+
 Created by Zoltan Kovari, 2024.
 ";
 

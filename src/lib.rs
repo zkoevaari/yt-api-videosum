@@ -23,15 +23,19 @@ pub struct Config {
 
 #[derive(Debug)]
 struct Video {
-//~     date: DateTime<Utc>,
-    date: String,
+    date: DateTime<Utc>,
     title: String,
     duration: String,
     id: String
 }
 impl Display for Video {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{},{},{},{}", self.date, self.title, self.duration, self.id)
+        write!(f, "{},{},{},{}",
+            self.date.to_rfc3339_opts(SecondsFormat::Secs, true),
+            self.title,
+            self.duration,
+            self.id
+        )
     }
 }
 
@@ -72,11 +76,10 @@ pub fn run(mut config: Config) -> Result<(), Box<dyn Error>> {
     println!("Querying playlist...");
 
     let mut video_ids = Vec::<String>::new();
-    let mut page = 1;
     let mut next_page_token: Option<String> = None;
     let mut total_results;
     loop {
-        let addr = format!("https://youtube.googleapis.com/youtube/v3/playlistItems?part=id%2Csnippet&playlistId={}&maxResults=8&pageToken={}&key={}",
+        let addr = format!("https://youtube.googleapis.com/youtube/v3/playlistItems?part=id%2Csnippet&playlistId={}&maxResults=50&pageToken={}&key={}",
             playlist_id, next_page_token.unwrap_or(String::new()), config.key);
 
         let json = request(&addr)?;
@@ -108,33 +111,32 @@ pub fn run(mut config: Config) -> Result<(), Box<dyn Error>> {
             .as_u64()
             .ok_or("Invalid 'totalResults' format")?;
 
-        print!("Page #{}: {} items", page, array.len());
-
         if array.is_empty() || next_page_token.is_none() || video_ids.len()>=total_results.try_into()? {
-            println!("");
             break;
-        } else {
-            println!(", continuing...");
-            page += 1;
         };
     }
-    println!("Res={}, len={}, token={}", total_results, video_ids.len(), !next_page_token.is_some());
+    println!("Video count: {}", video_ids.len());
 
-    println!("Querying video info...");
+    print!("Querying video info");
+    std::io::stdout().flush()?;
 
     let mut videos = Vec::<Video>::new();
-    for id in video_ids {
+    for (i, id) in video_ids.iter().enumerate() {
         let addr = format!("https://youtube.googleapis.com/youtube/v3/videos?part=snippet%2CcontentDetails&id={}&key={}",
             id, config.key);
 
         let json = request(&addr)?;
         write_out(&mut config.output, &json)?;
 
-        let date = json.pointer("/items/0/snippet/publishedAt")
-            .ok_or("Could not find 'publishedAt' field")?
-            .as_str()
-            .ok_or("Invalid 'publishedAt' format")?
-            .to_string();
+        let date = match DateTime::parse_from_rfc3339(
+            json.pointer("/items/0/snippet/publishedAt")
+                .ok_or("Could not find 'publishedAt' field")?
+                .as_str()
+                .ok_or("Invalid 'publishedAt' format")?
+        ) {
+            Ok(d) => DateTime::<Utc>::from(d),
+            Err(e) => return Err(format!("Could not parse 'publishedAt' timestamp: {}", e.to_string()))?
+        };
 
         let title = json.pointer("/items/0/snippet/title")
             .ok_or("Could not find 'title' field")?
@@ -154,15 +156,22 @@ pub fn run(mut config: Config) -> Result<(), Box<dyn Error>> {
             duration,
             id: id.clone()
         });
+
+        if ((i+1)*10/video_ids.len())>(i*10/video_ids.len()) {
+            print!(".");
+            std::io::stdout().flush()?;
+        }
     }
+    println!("");
 
     if let Some(ref mut out) = config.output {
         out.set_len(0)?;
         out.rewind()?;
+        writeln!(out, "#publishedAt,title,duration,videoId")?;
         for v in videos {
             writeln!(out, "{}", v)?
         }
-        println!("Success, output written to 'output.txt'");
+        println!("Success, output written to 'output.txt'.");
     } else {
         println!("Success.");
     }
