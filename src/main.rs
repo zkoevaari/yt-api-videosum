@@ -41,7 +41,14 @@ JSON response to help figuring out what went wrong.
 Created by Zoltan Kovari, 2024.
 ";
 
-const HELP: &str = "Run with '-h' option to display help.";
+/*
+    TODO:
+    - Parse duration
+    - Output aggregate
+    - Filter dates
+    - Filter out shorts, live, private and unlisted
+    - Command line option for output file
+*/
 
 
 use std::io::BufRead;
@@ -55,6 +62,8 @@ enum OptionalDate {
     Date(DateTime<Utc>),
     None
 }
+
+const HELP: &str = "Run with '-h' option to display help.";
 
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -232,8 +241,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    /* Setup output file writer
-        TODO command line option? */
+    /* Setup output file writer */
 
     let output = File::create("output.txt")?;
 

@@ -13,6 +13,8 @@ use std::io::prelude::*;
 use chrono::prelude::*;
 
 
+mod period;
+
 pub struct Config {
     pub key: String,
     pub channel_name: String,
@@ -30,11 +32,12 @@ struct Video {
 }
 impl Display for Video {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{},{},{},{}",
+        write!(f, "{},{},{},{},{:?}",
             self.date.to_rfc3339_opts(SecondsFormat::Secs, true),
             self.title,
+            self.id,
             self.duration,
-            self.id
+            crate::period::parse_delta(self.duration.as_str())
         )
     }
 }
@@ -167,7 +170,7 @@ pub fn run(mut config: Config) -> Result<(), Box<dyn Error>> {
     if let Some(ref mut out) = config.output {
         out.set_len(0)?;
         out.rewind()?;
-        writeln!(out, "#publishedAt,title,duration,videoId")?;
+        writeln!(out, "#publishedAt,title,videoId,duration,delta")?;
         for v in videos {
             writeln!(out, "{}", v)?
         }
