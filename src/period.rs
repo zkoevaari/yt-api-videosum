@@ -8,9 +8,10 @@
 
     Module to parse ISO 8601 time period format
 
-    Limitations:
+    Known limitations:
     - Although the standard includes further date fields like month and year, we are not supporting this yet, the day field is the largest.
     - Although it is not prohibited to use values exceeding their carry over points (e.g. "PT36H"), we are not supporting this except for the day field.
+    - We are not supporting fractional values.
 
 
     Excerpt from the YouTube API documentation:
@@ -32,10 +33,119 @@
     https://en.wikipedia.org/wiki/ISO_8601#Durations
 */
 
+use std::str::FromStr;
 use chrono::TimeDelta;
 
-pub fn parse_delta(_period: &str) -> Option<TimeDelta> {
-    TimeDelta::new(0, 0)
+
+pub fn parse_delta(period: &str) -> Option<TimeDelta> {
+    let mut sec = 0;
+    let mut min = 0;
+    let mut hrs = 0;
+    let mut days = 0;
+    let mut time_set = false;
+    let mut time_marked = false;
+    let mut date_set = false;
+    let mut period_marked = false;
+    let mut current = None;
+    let mut value = String::new();
+
+    for c in period.chars().rev() {
+        match Element::new(c) {
+            Some(e) => {
+                match e {
+                    Element::Time => time_marked = true,
+                    Element::Period => period_marked = true,
+                    _ => ()
+                }
+                match current {
+                    None => current = Some(e),
+                    Some(cur) => {
+                        if e<cur {
+                            let pointer = match cur {
+                                Element::Second => {
+                                    time_set = true;
+                                    Some(&mut sec)
+                                },
+                                Element::Minute => {
+                                    time_set = true;
+                                    Some(&mut min)
+                                },
+                                Element::Hour => {
+                                    time_set = true;
+                                    Some(&mut hrs)
+                                },
+                                Element::Day => {
+                                    date_set = true;
+                                    Some(&mut days)
+                                },
+                                _ => None
+                            };
+                            match pointer {
+                                Some(p) => match i64::from_str(&value) {
+                                    Ok(v) => *p = v,
+                                    Err(_) => return None
+                                },
+                                None => if !value.is_empty() {
+                                    return None;
+                                }
+                            }
+                            value = String::new();
+                            current = Some(e);
+                        } else {
+                            return None;
+                        }
+                    }
+                }
+            },
+            None => match current {
+                Some(cur) => match cur {
+                    Element::Time | Element::Period => return None,
+                    _ => if c.is_ascii_digit() {
+                        value.insert(0, c)
+                    } else {
+                        return None;
+                    }
+                },
+                None => return None
+            }
+        }
+    }
+
+    if sec >= 60 ||
+        min >= 60 ||
+        hrs >= 24 ||
+        time_set != time_marked ||
+        (!time_set && !date_set) ||
+        !period_marked
+    {
+        None
+    } else {
+        Some(TimeDelta::seconds(((days*24+hrs)*60+min)*60+sec))
+    }
+}
+
+
+#[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
+enum Element {
+    Period,
+    Day,
+    Time,
+    Hour,
+    Minute,
+    Second,
+}
+impl Element {
+    fn new(c: char) -> Option<Element> {
+        match c {
+            'P' => Some(Element::Period),
+            'D' => Some(Element::Day),
+            'T' => Some(Element::Time),
+            'H' => Some(Element::Hour),
+            'M' => Some(Element::Minute),
+            'S' => Some(Element::Second),
+            _ => None
+        }
+    }
 }
 
 
@@ -2327,6 +2437,37 @@ mod period_test {
             assert_eq!(parse_delta(p), r, "pattern=\"{}\"", p);
         }
 
-        //TODO insert 'A' and ' ' to disturb, also some lowercase
+        //Changing anything to 'A' or ' ' should fail
+        for (p, _) in tests {
+            for i in 0..p.len() {
+                let mut s = p.to_string();
+                s.replace_range(i..i+1, "A");
+                assert_eq!(parse_delta(&s), None, "pattern=\"{}\"", s);
+                s.replace_range(i..i+1, " ");
+                assert_eq!(parse_delta(&s), None, "pattern=\"{}\"", s);
+            }
+        }
+
+        //Inserting 'A' or ' ' should fail
+        for (p, _) in tests {
+            for i in 0..p.len() {
+                let mut s = p.to_string();
+                s.insert(i, 'A');
+                assert_eq!(parse_delta(&s), None, "pattern=\"{}\"", s);
+                s.replace_range(i..i+1, " ");
+                assert_eq!(parse_delta(&s), None, "pattern=\"{}\"", s);
+            }
+        }
+
+        //Changing any character to lowercase should fail
+        for (p, _) in tests {
+            for (i, c) in p.char_indices() {
+                let mut s = String::from(p);
+                if c.is_ascii_alphabetic() {
+                    s.replace_range(i..i+1, c.to_ascii_lowercase().to_string().as_str());
+                    assert_eq!(parse_delta(&s), None, "pattern=\"{}\"", s);
+                }
+            }
+        }
     }
 }
