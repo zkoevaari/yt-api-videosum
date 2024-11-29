@@ -9,8 +9,8 @@
 use std::error::Error;
 use std::fmt::Display;
 use std::fs::File;
-use std::io::prelude::*;
-use chrono::prelude::*;
+use std::io::{Seek, Write};
+use chrono::{DateTime,TimeDelta,Utc,SecondsFormat};
 
 
 mod period;
@@ -27,17 +27,36 @@ pub struct Config {
 struct Video {
     date: DateTime<Utc>,
     title: String,
+    id: String,
     duration: String,
-    id: String
+    delta: TimeDelta,
+}
+impl Video {
+    fn new(
+        date: DateTime<Utc>,
+        title: String,
+        id: String,
+        duration: String,
+    ) -> Result<Self, String> {
+        let delta = crate::period::parse_delta(duration.as_str())
+            .ok_or("Could not parse 'duration' field")?;
+        Ok(Self {
+            date,
+            title,
+            id,
+            duration,
+            delta,
+        })
+    }
 }
 impl Display for Video {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{},{},{},{},{:?}",
+        write!(f, "{},{},{},{},{}",
             self.date.to_rfc3339_opts(SecondsFormat::Secs, true),
             self.title,
             self.id,
             self.duration,
-            crate::period::parse_delta(self.duration.as_str())
+            self.delta.num_seconds(),
         )
     }
 }
@@ -153,12 +172,14 @@ pub fn run(mut config: Config) -> Result<(), Box<dyn Error>> {
             .ok_or("Invalid 'duration' format")?
             .to_string();
 
-        videos.push(Video {
-            date,
-            title,
-            duration,
-            id: id.clone()
-        });
+        videos.push(
+            Video::new(
+                date,
+                title,
+                id.clone(),
+                duration,
+            )?
+        );
 
         if ((i+1)*10/video_ids.len())>(i*10/video_ids.len()) {
             print!(".");
@@ -170,14 +191,21 @@ pub fn run(mut config: Config) -> Result<(), Box<dyn Error>> {
     if let Some(ref mut out) = config.output {
         out.set_len(0)?;
         out.rewind()?;
-        writeln!(out, "#publishedAt,title,videoId,duration,delta")?;
-        for v in videos {
+        writeln!(out, "#publishedAt,title,videoId,duration,duration_seconds")?;
+        for v in &videos {
             writeln!(out, "{}", v)?
         }
         println!("Success, output written to 'output.txt'.");
     } else {
         println!("Success.");
     }
+
+    let total = videos.iter().fold(TimeDelta::zero(), |acc, v| acc + v.delta);
+    print!("Sum total: {} seconds", total.num_seconds());
+    if total >= TimeDelta::minutes(1) {
+        print!(", or {}", dissect_delta(total));
+    }
+    println!("");
 
     Ok(())
 }
@@ -207,4 +235,104 @@ fn write_out(out: &mut Option<File>, item: &impl Display) -> Result<(), Box<dyn 
         write!(out, "{}", item)?
     }
     Ok(())
+}
+
+fn dissect_delta(mut delta: TimeDelta) -> String {
+    let plural = |x: i64| -> &str {
+        match x {
+            1 => "",
+            _ => "s"
+        }
+    };
+
+    let mut out = String::new();
+
+    if delta >= TimeDelta::days(1) {
+        let d = delta.num_days();
+        out.push_str(format!("{} day{}", d, plural(d)).as_str());
+        delta -= TimeDelta::days(d);
+    }
+    if delta >= TimeDelta::hours(1) {
+        let h = delta.num_hours();
+        if h>0 && !out.is_empty() { out.push(' ') }
+        out.push_str(format!("{} hour{}", h, plural(h)).as_str());
+        delta -= TimeDelta::hours(h);
+    }
+    if delta >= TimeDelta::minutes(1) {
+        let m = delta.num_minutes();
+        if m>0 && !out.is_empty() { out.push(' ') }
+        out.push_str(format!("{} minute{}", m, plural(m)).as_str());
+        delta -= TimeDelta::minutes(m);
+    }
+
+    let s = delta.num_seconds();
+    if s>0 || out.is_empty() {
+        if !out.is_empty() { out.push(' ') }
+        out.push_str(format!("{} second{}", s, plural(s)).as_str());
+    }
+    delta -= TimeDelta::seconds(s);
+    debug_assert!(delta < TimeDelta::seconds(1));
+
+    out
+}
+
+#[cfg(test)]
+mod lib_test {
+    use super::*;
+
+
+    #[test]
+    fn dissect_test() {
+        let tests = [
+            (0, "0 seconds"),
+            (1, "1 second"),
+            (59, "59 seconds"),
+            (60, "1 minute"),
+            (61, "1 minute 1 second"),
+            (119, "1 minute 59 seconds"),
+            (120, "2 minutes"),
+            (121, "2 minutes 1 second"),
+            (599, "9 minutes 59 seconds"),
+            (600, "10 minutes"),
+            (601, "10 minutes 1 second"),
+            (659, "10 minutes 59 seconds"),
+            (660, "11 minutes"),
+            (661, "11 minutes 1 second"),
+            (3599, "59 minutes 59 seconds"),
+            (3600, "1 hour"),
+            (3601, "1 hour 1 second"),
+            (3659, "1 hour 59 seconds"),
+            (3660, "1 hour 1 minute"),
+            (3661, "1 hour 1 minute 1 second"),
+            (4199, "1 hour 9 minutes 59 seconds"),
+            (4200, "1 hour 10 minutes"),
+            (4201, "1 hour 10 minutes 1 second"),
+            (7199, "1 hour 59 minutes 59 seconds"),
+            (7200, "2 hours"),
+            (7201, "2 hours 1 second"),
+            (7259, "2 hours 59 seconds"),
+            (7260, "2 hours 1 minute"),
+            (7261, "2 hours 1 minute 1 second"),
+            (86399, "23 hours 59 minutes 59 seconds"),
+            (86400, "1 day"),
+            (86401, "1 day 1 second"),
+            (86459, "1 day 59 seconds"),
+            (86460, "1 day 1 minute"),
+            (86461, "1 day 1 minute 1 second"),
+            (89999, "1 day 59 minutes 59 seconds"),
+            (90000, "1 day 1 hour"),
+            (90001, "1 day 1 hour 1 second"),
+            (90059, "1 day 1 hour 59 seconds"),
+            (90060, "1 day 1 hour 1 minute"),
+            (90061, "1 day 1 hour 1 minute 1 second"),
+            (604799, "6 days 23 hours 59 minutes 59 seconds"),
+            (604800, "7 days"),
+            (604801, "7 days 1 second"),
+        ];
+
+        for (t, s) in tests {
+//~             println!("{} = {}", t, dissect_delta(TimeDelta::seconds(t)));
+            assert_eq!(dissect_delta(TimeDelta::seconds(t)), s);
+        }
+    }
 }
