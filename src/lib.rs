@@ -88,10 +88,15 @@ pub fn run(mut config: Config) -> Result<(), Box<dyn Error>> {
                 .as_str()
                 .ok_or("Invalid 'uploads' id format")?,
         n => {
-            println!("Warning: Number of results is '{}'", n);
+            println!("Warning: More than one result ({})", n);
             return Ok(());
         }
     };
+
+    //Filtering to public only (ie. excluding shorts, live, private and unlisted) by replacing default "UU" prefix
+    let mut playlist_id_pub = String::new();
+    playlist_id_pub.push_str("UULF");
+    playlist_id_pub.push_str(&playlist_id[2..]);
     println!("Playlist ID exctrated.");
 
     println!("Querying playlist...");
@@ -100,7 +105,7 @@ pub fn run(mut config: Config) -> Result<(), Box<dyn Error>> {
     let mut next_page_token: Option<String> = None;
     loop {
         let addr = format!("https://youtube.googleapis.com/youtube/v3/playlistItems?part=id%2Csnippet&playlistId={}&maxResults=50&pageToken={}&key={}",
-            playlist_id, next_page_token.unwrap_or(String::new()), config.key);
+            playlist_id_pub, next_page_token.unwrap_or(String::new()), config.key);
 
         let json = request(&addr)?;
         write_out(&mut config.output, &json)?;

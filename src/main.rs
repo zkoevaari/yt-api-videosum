@@ -43,8 +43,8 @@ Created by Zoltan Kovari, 2024.
 
 /*
     TODO:
-    - Filter out shorts, live, private and unlisted
     - Command line option for output file
+    - Bring out the output stream?
 */
 
 
@@ -249,7 +249,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let output = File::create("output.txt")?;
 
     /* Config done, lib call */
-    //TODO bring out the output stream
     yt_api_videosum::run(
         yt_api_videosum::Config {
             key,
