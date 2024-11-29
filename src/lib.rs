@@ -69,7 +69,6 @@ impl Display for Video {
     3) Get content duration for each video
     4) Aggregation
 */
-
 pub fn run(mut config: Config) -> Result<(), Box<dyn Error>> {
     println!("Querying channel info...");
 
@@ -99,7 +98,6 @@ pub fn run(mut config: Config) -> Result<(), Box<dyn Error>> {
 
     let mut video_ids = Vec::<String>::new();
     let mut next_page_token: Option<String> = None;
-    let mut total_results;
     loop {
         let addr = format!("https://youtube.googleapis.com/youtube/v3/playlistItems?part=id%2Csnippet&playlistId={}&maxResults=50&pageToken={}&key={}",
             playlist_id, next_page_token.unwrap_or(String::new()), config.key);
@@ -113,6 +111,27 @@ pub fn run(mut config: Config) -> Result<(), Box<dyn Error>> {
             .ok_or("Invalid 'items' format")?;
 
         for e in array {
+            let date = match DateTime::parse_from_rfc3339(
+                e.pointer("/snippet/publishedAt")
+                    .ok_or("Could not find 'publishedAt' field")?
+                    .as_str()
+                    .ok_or("Invalid 'publishedAt' format")?
+            ) {
+                Ok(d) => DateTime::<Utc>::from(d),
+                Err(e) => return Err(format!("Could not parse 'publishedAt' timestamp: {}", e.to_string()))?
+            };
+
+            if let Some(start) = config.start_date {
+                if date < start {
+                    continue;
+                }
+            }
+            if let Some(end) = config.end_date {
+                if date > end {
+                    continue;
+                }
+            }
+
             video_ids.push(e.pointer("/snippet/resourceId/videoId")
                 .ok_or("Could not find 'videoId' field")?
                 .as_str()
@@ -128,7 +147,7 @@ pub fn run(mut config: Config) -> Result<(), Box<dyn Error>> {
             None => None
         };
 
-        total_results = json.pointer("/pageInfo/totalResults")
+        let total_results = json.pointer("/pageInfo/totalResults")
             .ok_or("Could not find 'totalResults' field")?
             .as_u64()
             .ok_or("Invalid 'totalResults' format")?;

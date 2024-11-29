@@ -20,12 +20,12 @@ yt_api_videosum [-k api_key] [-s [start_date]] [-e [end_date]] [channel_name]
 
 Options:
 -k  YT API key supplied in plain text.
-      If omitted, the program will look for it in the 'config/key.txt' file.
+      If empty, the program will look for it in the 'config/key.txt' file.
 -s
 -e  Filter the videos by publish date, giving a start- and/or end date for
       the active interval. Date is expected in RFC3339 format,
       i.e. 'yyyy-mm-ddTHH:MM:SSZ' (note the UTC timezone).
-      If the timestamp is omitted, it will be asked interactively.
+      If the timestamp is empty, it will be asked interactively.
 -h  Display this help and exit.
 
 Parameters:
@@ -43,9 +43,6 @@ Created by Zoltan Kovari, 2024.
 
 /*
     TODO:
-    - Parse duration
-    - Output aggregate
-    - Filter dates
     - Filter out shorts, live, private and unlisted
     - Command line option for output file
 */
@@ -100,7 +97,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     start_date = match args.get(i+1) {
                         Some(s) if !s.starts_with('-') => {
                             i += 1;
-                            OptionalDate::Some(String::from(s))
+                            match s.is_empty() {
+                                false => OptionalDate::Some(String::from(s)),
+                                true => OptionalDate::Ask
+                            }
                         },
                         _ => OptionalDate::Ask
                     };
@@ -109,7 +109,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     end_date = match args.get(i+1) {
                         Some(s) if !s.starts_with('-') => {
                             i += 1;
-                            OptionalDate::Some(String::from(s))
+                            match s.is_empty() {
+                                false => OptionalDate::Some(String::from(s)),
+                                true => OptionalDate::Ask
+                            }
                         },
                         _ => OptionalDate::Ask
                     };
