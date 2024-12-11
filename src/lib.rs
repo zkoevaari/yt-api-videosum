@@ -97,7 +97,7 @@ pub fn run(mut config: Config) -> Result<(), Box<dyn Error>> {
     let mut playlist_id_pub = String::new();
     playlist_id_pub.push_str("UULF");
     playlist_id_pub.push_str(&playlist_id[2..]);
-    println!("Playlist ID exctrated.");
+    println!("Playlist ID extracted.");
 
     println!("Querying playlist...");
 
@@ -227,7 +227,7 @@ pub fn run(mut config: Config) -> Result<(), Box<dyn Error>> {
     let total = videos.iter().fold(TimeDelta::zero(), |acc, v| acc + v.delta);
     print!("Sum total: {} seconds", total.num_seconds());
     if total >= TimeDelta::minutes(1) {
-        print!(", or {}", dissect_delta(total));
+        print!(", or {}", dissect_delta(total, TimeBase::Hours));
     }
     println!("");
 
@@ -261,7 +261,14 @@ fn write_out(out: &mut Option<File>, item: &impl Display) -> Result<(), Box<dyn 
     Ok(())
 }
 
-fn dissect_delta(mut delta: TimeDelta) -> String {
+#[derive(Clone, Copy, PartialEq, PartialOrd)]
+enum TimeBase {
+    _Seconds,
+    Minutes,
+    Hours,
+    Days,
+}
+fn dissect_delta(mut delta: TimeDelta, base: TimeBase) -> String {
     let plural = |x: i64| -> &str {
         match x {
             1 => "",
@@ -271,18 +278,18 @@ fn dissect_delta(mut delta: TimeDelta) -> String {
 
     let mut out = String::new();
 
-    if delta >= TimeDelta::days(1) {
+    if delta >= TimeDelta::days(1) && base >= TimeBase::Days {
         let d = delta.num_days();
         out.push_str(format!("{} day{}", d, plural(d)).as_str());
         delta -= TimeDelta::days(d);
     }
-    if delta >= TimeDelta::hours(1) {
+    if delta >= TimeDelta::hours(1) && base >= TimeBase::Hours {
         let h = delta.num_hours();
         if h>0 && !out.is_empty() { out.push(' ') }
         out.push_str(format!("{} hour{}", h, plural(h)).as_str());
         delta -= TimeDelta::hours(h);
     }
-    if delta >= TimeDelta::minutes(1) {
+    if delta >= TimeDelta::minutes(1) && base >= TimeBase::Minutes {
         let m = delta.num_minutes();
         if m>0 && !out.is_empty() { out.push(' ') }
         out.push_str(format!("{} minute{}", m, plural(m)).as_str());
@@ -307,56 +314,195 @@ mod lib_test {
 
     #[test]
     fn dissect_test() {
+        let sec = TimeBase::_Seconds;
+        let min = TimeBase::Minutes;
+        let hrs = TimeBase::Hours;
+        let days = TimeBase::Days;
+
         let tests = [
-            (0, "0 seconds"),
-            (1, "1 second"),
-            (59, "59 seconds"),
-            (60, "1 minute"),
-            (61, "1 minute 1 second"),
-            (119, "1 minute 59 seconds"),
-            (120, "2 minutes"),
-            (121, "2 minutes 1 second"),
-            (599, "9 minutes 59 seconds"),
-            (600, "10 minutes"),
-            (601, "10 minutes 1 second"),
-            (659, "10 minutes 59 seconds"),
-            (660, "11 minutes"),
-            (661, "11 minutes 1 second"),
-            (3599, "59 minutes 59 seconds"),
-            (3600, "1 hour"),
-            (3601, "1 hour 1 second"),
-            (3659, "1 hour 59 seconds"),
-            (3660, "1 hour 1 minute"),
-            (3661, "1 hour 1 minute 1 second"),
-            (4199, "1 hour 9 minutes 59 seconds"),
-            (4200, "1 hour 10 minutes"),
-            (4201, "1 hour 10 minutes 1 second"),
-            (7199, "1 hour 59 minutes 59 seconds"),
-            (7200, "2 hours"),
-            (7201, "2 hours 1 second"),
-            (7259, "2 hours 59 seconds"),
-            (7260, "2 hours 1 minute"),
-            (7261, "2 hours 1 minute 1 second"),
-            (86399, "23 hours 59 minutes 59 seconds"),
-            (86400, "1 day"),
-            (86401, "1 day 1 second"),
-            (86459, "1 day 59 seconds"),
-            (86460, "1 day 1 minute"),
-            (86461, "1 day 1 minute 1 second"),
-            (89999, "1 day 59 minutes 59 seconds"),
-            (90000, "1 day 1 hour"),
-            (90001, "1 day 1 hour 1 second"),
-            (90059, "1 day 1 hour 59 seconds"),
-            (90060, "1 day 1 hour 1 minute"),
-            (90061, "1 day 1 hour 1 minute 1 second"),
-            (604799, "6 days 23 hours 59 minutes 59 seconds"),
-            (604800, "7 days"),
-            (604801, "7 days 1 second"),
+            (0, sec, "0 seconds"),
+            (1, sec, "1 second"),
+            (59, sec, "59 seconds"),
+            (60, sec, "60 seconds"),
+            (61, sec, "61 seconds"),
+            (119, sec, "119 seconds"),
+            (120, sec, "120 seconds"),
+            (121, sec, "121 seconds"),
+            (599, sec, "599 seconds"),
+            (600, sec, "600 seconds"),
+            (601, sec, "601 seconds"),
+            (659, sec, "659 seconds"),
+            (660, sec, "660 seconds"),
+            (661, sec, "661 seconds"),
+            (3599, sec, "3599 seconds"),
+            (3600, sec, "3600 seconds"),
+            (3601, sec, "3601 seconds"),
+            (3659, sec, "3659 seconds"),
+            (3660, sec, "3660 seconds"),
+            (3661, sec, "3661 seconds"),
+            (4199, sec, "4199 seconds"),
+            (4200, sec, "4200 seconds"),
+            (4201, sec, "4201 seconds"),
+            (7199, sec, "7199 seconds"),
+            (7200, sec, "7200 seconds"),
+            (7201, sec, "7201 seconds"),
+            (7259, sec, "7259 seconds"),
+            (7260, sec, "7260 seconds"),
+            (7261, sec, "7261 seconds"),
+            (86399, sec, "86399 seconds"),
+            (86400, sec, "86400 seconds"),
+            (86401, sec, "86401 seconds"),
+            (86459, sec, "86459 seconds"),
+            (86460, sec, "86460 seconds"),
+            (86461, sec, "86461 seconds"),
+            (89999, sec, "89999 seconds"),
+            (90000, sec, "90000 seconds"),
+            (90001, sec, "90001 seconds"),
+            (90059, sec, "90059 seconds"),
+            (90060, sec, "90060 seconds"),
+            (90061, sec, "90061 seconds"),
+            (604799, sec, "604799 seconds"),
+            (604800, sec, "604800 seconds"),
+            (604801, sec, "604801 seconds"),
+
+            (0, min, "0 seconds"),
+            (1, min, "1 second"),
+            (59, min, "59 seconds"),
+            (60, min, "1 minute"),
+            (61, min, "1 minute 1 second"),
+            (119, min, "1 minute 59 seconds"),
+            (120, min, "2 minutes"),
+            (121, min, "2 minutes 1 second"),
+            (599, min, "9 minutes 59 seconds"),
+            (600, min, "10 minutes"),
+            (601, min, "10 minutes 1 second"),
+            (659, min, "10 minutes 59 seconds"),
+            (660, min, "11 minutes"),
+            (661, min, "11 minutes 1 second"),
+            (3599, min, "59 minutes 59 seconds"),
+            (3600, min, "60 minutes"),
+            (3601, min, "60 minutes 1 second"),
+            (3659, min, "60 minutes 59 seconds"),
+            (3660, min, "61 minutes"),
+            (3661, min, "61 minutes 1 second"),
+            (4199, min, "69 minutes 59 seconds"),
+            (4200, min, "70 minutes"),
+            (4201, min, "70 minutes 1 second"),
+            (7199, min, "119 minutes 59 seconds"),
+            (7200, min, "120 minutes"),
+            (7201, min, "120 minutes 1 second"),
+            (7259, min, "120 minutes 59 seconds"),
+            (7260, min, "121 minutes"),
+            (7261, min, "121 minutes 1 second"),
+            (86399, min, "1439 minutes 59 seconds"),
+            (86400, min, "1440 minutes"),
+            (86401, min, "1440 minutes 1 second"),
+            (86459, min, "1440 minutes 59 seconds"),
+            (86460, min, "1441 minutes"),
+            (86461, min, "1441 minutes 1 second"),
+            (89999, min, "1499 minutes 59 seconds"),
+            (90000, min, "1500 minutes"),
+            (90001, min, "1500 minutes 1 second"),
+            (90059, min, "1500 minutes 59 seconds"),
+            (90060, min, "1501 minutes"),
+            (90061, min, "1501 minutes 1 second"),
+            (604799, min, "10079 minutes 59 seconds"),
+            (604800, min, "10080 minutes"),
+            (604801, min, "10080 minutes 1 second"),
+
+            (0, hrs, "0 seconds"),
+            (1, hrs, "1 second"),
+            (59, hrs, "59 seconds"),
+            (60, hrs, "1 minute"),
+            (61, hrs, "1 minute 1 second"),
+            (119, hrs, "1 minute 59 seconds"),
+            (120, hrs, "2 minutes"),
+            (121, hrs, "2 minutes 1 second"),
+            (599, hrs, "9 minutes 59 seconds"),
+            (600, hrs, "10 minutes"),
+            (601, hrs, "10 minutes 1 second"),
+            (659, hrs, "10 minutes 59 seconds"),
+            (660, hrs, "11 minutes"),
+            (661, hrs, "11 minutes 1 second"),
+            (3599, hrs, "59 minutes 59 seconds"),
+            (3600, hrs, "1 hour"),
+            (3601, hrs, "1 hour 1 second"),
+            (3659, hrs, "1 hour 59 seconds"),
+            (3660, hrs, "1 hour 1 minute"),
+            (3661, hrs, "1 hour 1 minute 1 second"),
+            (4199, hrs, "1 hour 9 minutes 59 seconds"),
+            (4200, hrs, "1 hour 10 minutes"),
+            (4201, hrs, "1 hour 10 minutes 1 second"),
+            (7199, hrs, "1 hour 59 minutes 59 seconds"),
+            (7200, hrs, "2 hours"),
+            (7201, hrs, "2 hours 1 second"),
+            (7259, hrs, "2 hours 59 seconds"),
+            (7260, hrs, "2 hours 1 minute"),
+            (7261, hrs, "2 hours 1 minute 1 second"),
+            (86399, hrs, "23 hours 59 minutes 59 seconds"),
+            (86400, hrs, "24 hours"),
+            (86401, hrs, "24 hours 1 second"),
+            (86459, hrs, "24 hours 59 seconds"),
+            (86460, hrs, "24 hours 1 minute"),
+            (86461, hrs, "24 hours 1 minute 1 second"),
+            (89999, hrs, "24 hours 59 minutes 59 seconds"),
+            (90000, hrs, "25 hours"),
+            (90001, hrs, "25 hours 1 second"),
+            (90059, hrs, "25 hours 59 seconds"),
+            (90060, hrs, "25 hours 1 minute"),
+            (90061, hrs, "25 hours 1 minute 1 second"),
+            (604799, hrs, "167 hours 59 minutes 59 seconds"),
+            (604800, hrs, "168 hours"),
+            (604801, hrs, "168 hours 1 second"),
+
+            (0, days, "0 seconds"),
+            (1, days, "1 second"),
+            (59, days, "59 seconds"),
+            (60, days, "1 minute"),
+            (61, days, "1 minute 1 second"),
+            (119, days, "1 minute 59 seconds"),
+            (120, days, "2 minutes"),
+            (121, days, "2 minutes 1 second"),
+            (599, days, "9 minutes 59 seconds"),
+            (600, days, "10 minutes"),
+            (601, days, "10 minutes 1 second"),
+            (659, days, "10 minutes 59 seconds"),
+            (660, days, "11 minutes"),
+            (661, days, "11 minutes 1 second"),
+            (3599, days, "59 minutes 59 seconds"),
+            (3600, days, "1 hour"),
+            (3601, days, "1 hour 1 second"),
+            (3659, days, "1 hour 59 seconds"),
+            (3660, days, "1 hour 1 minute"),
+            (3661, days, "1 hour 1 minute 1 second"),
+            (4199, days, "1 hour 9 minutes 59 seconds"),
+            (4200, days, "1 hour 10 minutes"),
+            (4201, days, "1 hour 10 minutes 1 second"),
+            (7199, days, "1 hour 59 minutes 59 seconds"),
+            (7200, days, "2 hours"),
+            (7201, days, "2 hours 1 second"),
+            (7259, days, "2 hours 59 seconds"),
+            (7260, days, "2 hours 1 minute"),
+            (7261, days, "2 hours 1 minute 1 second"),
+            (86399, days, "23 hours 59 minutes 59 seconds"),
+            (86400, days, "1 day"),
+            (86401, days, "1 day 1 second"),
+            (86459, days, "1 day 59 seconds"),
+            (86460, days, "1 day 1 minute"),
+            (86461, days, "1 day 1 minute 1 second"),
+            (89999, days, "1 day 59 minutes 59 seconds"),
+            (90000, days, "1 day 1 hour"),
+            (90001, days, "1 day 1 hour 1 second"),
+            (90059, days, "1 day 1 hour 59 seconds"),
+            (90060, days, "1 day 1 hour 1 minute"),
+            (90061, days, "1 day 1 hour 1 minute 1 second"),
+            (604799, days, "6 days 23 hours 59 minutes 59 seconds"),
+            (604800, days, "7 days"),
+            (604801, days, "7 days 1 second"),
         ];
 
-        for (t, s) in tests {
-//~             println!("{} = {}", t, dissect_delta(TimeDelta::seconds(t)));
-            assert_eq!(dissect_delta(TimeDelta::seconds(t)), s);
+        for (t, b, s) in tests {
+            assert_eq!(dissect_delta(TimeDelta::seconds(t), b), s);
         }
     }
 }
