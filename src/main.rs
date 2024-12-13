@@ -134,23 +134,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     /* Parse dates if specified */
 
-    if let OptionalDate::Some(s) = start_date {
-        match DateTime::parse_from_rfc3339(&s) {
+    if let OptionalDate::Some(ref s) = start_date {
+        match DateTime::parse_from_rfc3339(s) {
             Ok(d) => {
                 start_date = OptionalDate::Date(DateTime::<Utc>::from(d));
             },
             Err(e) => {
-                return Err(format!("Could not parse start timestamp '{}': {}", &s, e.to_string()))?;
+                Err(format!("Could not parse start timestamp '{}': {}", &s, e))?;
             }
         }
     }
-    if let OptionalDate::Some(s) = end_date {
-        match DateTime::parse_from_rfc3339(&s) {
+    if let OptionalDate::Some(ref s) = end_date {
+        match DateTime::parse_from_rfc3339(s) {
             Ok(d) => {
                 end_date = OptionalDate::Date(DateTime::<Utc>::from(d));
             },
             Err(e) => {
-                return Err(format!("Could not parse end timestamp '{}': {}", &s, e.to_string()))?;
+                Err(format!("Could not parse end timestamp '{}': {}", &s, e))?;
             }
         }
     }
@@ -213,13 +213,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut s = String::new();
             std::io::stdin().read_line(&mut s)?;
             let s = s.as_str().trim();
-            match DateTime::parse_from_rfc3339(&s.trim()) {
+            match DateTime::parse_from_rfc3339(s.trim()) {
                 Ok(d) => {
                     start_date = OptionalDate::Date(DateTime::<Utc>::from(d));
                     break;
                 },
                 Err(e) => {
-                    println!("Warning: Could not parse timestamp '{}': {}", &s, e.to_string());
+                    println!("Warning: Could not parse timestamp '{}': {}", &s, e);
                     println!("Note: RFC3339 format required, i.e. 'yyyy-mm-ddTHH:MM:SSZ'");
                 }
             }
@@ -231,13 +231,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let mut s = String::new();
             std::io::stdin().read_line(&mut s)?;
             let s = s.as_str().trim();
-            match DateTime::parse_from_rfc3339(&s) {
+            match DateTime::parse_from_rfc3339(s) {
                 Ok(d) => {
                     end_date = OptionalDate::Date(DateTime::<Utc>::from(d));
                     break;
                 },
                 Err(e) => {
-                    println!("Warning: Could not parse timestamp '{}': {}", &s, e.to_string());
+                    println!("Warning: Could not parse timestamp '{}': {}", &s, e);
                     println!("Note: RFC3339 format required, i.e. 'yyyy-mm-ddTHH:MM:SSZ'");
                 }
             }

@@ -105,7 +105,7 @@ pub fn run(mut config: Config) -> Result<(), Box<dyn Error>> {
     let mut next_page_token: Option<String> = None;
     loop {
         let addr = format!("https://youtube.googleapis.com/youtube/v3/playlistItems?part=id%2Csnippet&playlistId={}&maxResults=50&pageToken={}&key={}",
-            playlist_id_pub, next_page_token.unwrap_or(String::new()), config.key);
+            playlist_id_pub, next_page_token.unwrap_or_default(), config.key);
 
         let json = request(&addr)?;
         write_out(&mut config.output, &json)?;
@@ -123,7 +123,7 @@ pub fn run(mut config: Config) -> Result<(), Box<dyn Error>> {
                     .ok_or("Invalid 'publishedAt' format")?
             ) {
                 Ok(d) => DateTime::<Utc>::from(d),
-                Err(e) => return Err(format!("Could not parse 'publishedAt' timestamp: {}", e.to_string()))?
+                Err(e) => return Err(format!("Could not parse 'publishedAt' timestamp: {}", e))?
             };
 
             if let Some(start) = config.start_date {
@@ -181,7 +181,7 @@ pub fn run(mut config: Config) -> Result<(), Box<dyn Error>> {
                 .ok_or("Invalid 'publishedAt' format")?
         ) {
             Ok(d) => DateTime::<Utc>::from(d),
-            Err(e) => return Err(format!("Could not parse 'publishedAt' timestamp: {}", e.to_string()))?
+            Err(e) => return Err(format!("Could not parse 'publishedAt' timestamp: {}", e))?
         };
 
         let title = json.pointer("/items/0/snippet/title")
@@ -210,7 +210,7 @@ pub fn run(mut config: Config) -> Result<(), Box<dyn Error>> {
             std::io::stdout().flush()?;
         }
     }
-    println!("");
+    println!();
 
     if let Some(ref mut out) = config.output {
         out.set_len(0)?;
@@ -229,7 +229,7 @@ pub fn run(mut config: Config) -> Result<(), Box<dyn Error>> {
     if total >= TimeDelta::minutes(1) {
         print!(", or {}", dissect_delta(total, TimeBase::Hours));
     }
-    println!("");
+    println!();
 
     Ok(())
 }
@@ -240,13 +240,13 @@ fn request(address: &str) -> Result<serde_json::Value, Box<dyn Error>> {
     match req.call() {
         Ok(res) => match res.into_json() {
             Ok(json) => Ok(json),
-            Err(e) => return Err(format!("Failed to read JSON: {}", e.to_string()))?
+            Err(e) => return Err(format!("Failed to read JSON: {}", e))?
         },
         Err(e) => {
             if let ureq::Error::Status(status, _r) = e {
                 return Err(format!("Received HTTP status code: {}", http::StatusCode::from_u16(status).unwrap()))?
             } else {
-                return Err(format!("HTTP transfer failure: {}", e.to_string()))?
+                return Err(format!("HTTP transfer failure: {}", e))?
             }
         }
     }
