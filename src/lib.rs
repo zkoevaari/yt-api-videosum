@@ -10,8 +10,8 @@ use std::error::Error;
 use std::fmt::Display;
 use std::fs::File;
 use std::io::{Seek, Write};
-use chrono::{DateTime,TimeDelta,Utc,SecondsFormat};
 
+use chrono::{DateTime, SecondsFormat, TimeDelta, Utc};
 
 mod period;
 
@@ -20,7 +20,7 @@ pub struct Config {
     pub channel_name: String,
     pub start_date: Option<DateTime<Utc>>,
     pub end_date: Option<DateTime<Utc>>,
-    pub output: Option<File>
+    pub output: Option<File>,
 }
 
 #[derive(Debug)]
@@ -51,7 +51,9 @@ impl Video {
 }
 impl Display for Video {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{},{},{},{},{}",
+        write!(
+            f,
+            "{},{},{},{},{}",
             self.date.to_rfc3339_opts(SecondsFormat::Secs, true),
             self.title,
             self.id,
@@ -78,15 +80,17 @@ pub fn run(mut config: Config) -> Result<(), Box<dyn Error>> {
     let json = request(&addr)?;
     write_out(&mut config.output, &json)?;
 
-    let playlist_id = match json.pointer("/pageInfo/totalResults")
+    let playlist_id = match json
+        .pointer("/pageInfo/totalResults")
         .ok_or("Could not find 'totalResults' field")?
         .as_u64()
         .ok_or("Invalid 'totalResults' format")?
     {
-        1 => json.pointer("/items/0/contentDetails/relatedPlaylists/uploads")
-                .ok_or("Could not find 'uploads' id field")?
-                .as_str()
-                .ok_or("Invalid 'uploads' id format")?,
+        1 => json
+            .pointer("/items/0/contentDetails/relatedPlaylists/uploads")
+            .ok_or("Could not find 'uploads' id field")?
+            .as_str()
+            .ok_or("Invalid 'uploads' id format")?,
         n => {
             println!("Warning: More than one result ({})", n);
             return Ok(());
@@ -110,7 +114,8 @@ pub fn run(mut config: Config) -> Result<(), Box<dyn Error>> {
         let json = request(&addr)?;
         write_out(&mut config.output, &json)?;
 
-        let array = json.get("items")
+        let array = json
+            .get("items")
             .ok_or("Could not find 'items' array")?
             .as_array()
             .ok_or("Invalid 'items' format")?;
@@ -120,10 +125,10 @@ pub fn run(mut config: Config) -> Result<(), Box<dyn Error>> {
                 e.pointer("/snippet/publishedAt")
                     .ok_or("Could not find 'publishedAt' field")?
                     .as_str()
-                    .ok_or("Invalid 'publishedAt' format")?
+                    .ok_or("Invalid 'publishedAt' format")?,
             ) {
                 Ok(d) => DateTime::<Utc>::from(d),
-                Err(e) => return Err(format!("Could not parse 'publishedAt' timestamp: {}", e))?
+                Err(e) => return Err(format!("Could not parse 'publishedAt' timestamp: {}", e))?,
             };
 
             if let Some(start) = config.start_date {
@@ -137,27 +142,34 @@ pub fn run(mut config: Config) -> Result<(), Box<dyn Error>> {
                 }
             }
 
-            video_ids.push(e.pointer("/snippet/resourceId/videoId")
-                .ok_or("Could not find 'videoId' field")?
-                .as_str()
-                .ok_or("Invalid 'videoId' format")?
-                .to_string()
+            video_ids.push(
+                e.pointer("/snippet/resourceId/videoId")
+                    .ok_or("Could not find 'videoId' field")?
+                    .as_str()
+                    .ok_or("Invalid 'videoId' format")?
+                    .to_string(),
             );
         }
 
         next_page_token = match json.get("nextPageToken") {
-            Some(v) => Some(v.as_str()
-                .ok_or("Invalid 'nextPageToken' format")?
-                .to_string()),
-            None => None
+            Some(v) => Some(
+                v.as_str()
+                    .ok_or("Invalid 'nextPageToken' format")?
+                    .to_string(),
+            ),
+            None => None,
         };
 
-        let total_results = json.pointer("/pageInfo/totalResults")
+        let total_results = json
+            .pointer("/pageInfo/totalResults")
             .ok_or("Could not find 'totalResults' field")?
             .as_u64()
             .ok_or("Invalid 'totalResults' format")?;
 
-        if array.is_empty() || next_page_token.is_none() || video_ids.len()>=total_results.try_into()? {
+        if array.is_empty()
+            || next_page_token.is_none()
+            || video_ids.len() >= total_results.try_into()?
+        {
             break;
         };
     }
@@ -178,34 +190,29 @@ pub fn run(mut config: Config) -> Result<(), Box<dyn Error>> {
             json.pointer("/items/0/snippet/publishedAt")
                 .ok_or("Could not find 'publishedAt' field")?
                 .as_str()
-                .ok_or("Invalid 'publishedAt' format")?
+                .ok_or("Invalid 'publishedAt' format")?,
         ) {
             Ok(d) => DateTime::<Utc>::from(d),
-            Err(e) => return Err(format!("Could not parse 'publishedAt' timestamp: {}", e))?
+            Err(e) => return Err(format!("Could not parse 'publishedAt' timestamp: {}", e))?,
         };
 
-        let title = json.pointer("/items/0/snippet/title")
+        let title = json
+            .pointer("/items/0/snippet/title")
             .ok_or("Could not find 'title' field")?
             .as_str()
             .ok_or("Invalid 'title' format")?
             .to_string();
 
-        let duration = json.pointer("/items/0/contentDetails/duration")
+        let duration = json
+            .pointer("/items/0/contentDetails/duration")
             .ok_or("Could not find 'duration' field")?
             .as_str()
             .ok_or("Invalid 'duration' format")?
             .to_string();
 
-        videos.push(
-            Video::new(
-                date,
-                title,
-                id.clone(),
-                duration,
-            )?
-        );
+        videos.push(Video::new(date, title, id.clone(), duration)?);
 
-        if ((i+1)*10/video_ids.len())>(i*10/video_ids.len()) {
+        if ((i + 1) * 10 / video_ids.len()) > (i * 10 / video_ids.len()) {
             print!(".");
             std::io::stdout().flush()?;
         }
@@ -224,7 +231,9 @@ pub fn run(mut config: Config) -> Result<(), Box<dyn Error>> {
         println!("Success.");
     }
 
-    let total = videos.iter().fold(TimeDelta::zero(), |acc, v| acc + v.delta);
+    let total = videos
+        .iter()
+        .fold(TimeDelta::zero(), |acc, v| acc + v.delta);
     print!("Sum total: {} seconds", total.num_seconds());
     if total >= TimeDelta::minutes(1) {
         print!(", or {}", dissect_delta(total, TimeBase::Hours));
@@ -240,13 +249,16 @@ fn request(address: &str) -> Result<serde_json::Value, Box<dyn Error>> {
     match req.call() {
         Ok(res) => match res.into_json() {
             Ok(json) => Ok(json),
-            Err(e) => return Err(format!("Failed to read JSON: {}", e))?
+            Err(e) => return Err(format!("Failed to read JSON: {}", e))?,
         },
         Err(e) => {
             if let ureq::Error::Status(status, _r) = e {
-                return Err(format!("Received HTTP status code: {}", http::StatusCode::from_u16(status).unwrap()))?
+                return Err(format!(
+                    "Received HTTP status code: {}",
+                    http::StatusCode::from_u16(status).unwrap(),
+                ))?;
             } else {
-                return Err(format!("HTTP transfer failure: {}", e))?
+                return Err(format!("HTTP transfer failure: {}", e))?;
             }
         }
     }
@@ -272,7 +284,7 @@ fn dissect_delta(mut delta: TimeDelta, base: TimeBase) -> String {
     let plural = |x: i64| -> &str {
         match x {
             1 => "",
-            _ => "s"
+            _ => "s",
         }
     };
 
@@ -285,20 +297,26 @@ fn dissect_delta(mut delta: TimeDelta, base: TimeBase) -> String {
     }
     if delta >= TimeDelta::hours(1) && base >= TimeBase::Hours {
         let h = delta.num_hours();
-        if h>0 && !out.is_empty() { out.push(' ') }
+        if h > 0 && !out.is_empty() {
+            out.push(' ');
+        }
         out.push_str(format!("{} hour{}", h, plural(h)).as_str());
         delta -= TimeDelta::hours(h);
     }
     if delta >= TimeDelta::minutes(1) && base >= TimeBase::Minutes {
         let m = delta.num_minutes();
-        if m>0 && !out.is_empty() { out.push(' ') }
+        if m > 0 && !out.is_empty() {
+            out.push(' ');
+        }
         out.push_str(format!("{} minute{}", m, plural(m)).as_str());
         delta -= TimeDelta::minutes(m);
     }
 
     let s = delta.num_seconds();
-    if s>0 || out.is_empty() {
-        if !out.is_empty() { out.push(' ') }
+    if s > 0 || out.is_empty() {
+        if !out.is_empty() {
+            out.push(' ');
+        }
         out.push_str(format!("{} second{}", s, plural(s)).as_str());
     }
     delta -= TimeDelta::seconds(s);
@@ -310,7 +328,6 @@ fn dissect_delta(mut delta: TimeDelta, base: TimeBase) -> String {
 #[cfg(test)]
 mod lib_test {
     use super::*;
-
 
     #[test]
     fn dissect_test() {

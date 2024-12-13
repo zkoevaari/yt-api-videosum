@@ -47,30 +47,28 @@ Created by Zoltan Kovari, 2024.
     - Bring out the output stream?
 */
 
-
-use std::io::BufRead;
 use std::fs::File;
-use chrono::prelude::*;
+use std::io::BufRead;
 
+use chrono::prelude::*;
 
 enum OptionalDate {
     Some(String),
     Ask,
     Date(DateTime<Utc>),
-    None
+    None,
 }
 
 const HELP: &str = "Run with '-h' option to display help.";
-
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     /* Start loading command line arguments */
 
     let args: Vec<String> = std::env::args().skip(1).collect();
-    if args.iter().any(|e| e=="-h" || e=="--help") {
-            println!("{}", DESC);
-            return Ok(());
+    if args.iter().any(|e| e == "-h" || e == "--help") {
+        println!("{}", DESC);
+        return Ok(());
     }
 
     let mut key: Option<String> = None;
@@ -78,51 +76,51 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut end_date: OptionalDate = OptionalDate::None;
     let mut channel_name: Option<String> = None;
 
-    let mut i=0;
-    while i<args.len() {
+    let mut i = 0;
+    while i < args.len() {
         let e = &args[i];
 
         if e.starts_with('-') {
             match e.as_str() {
                 "-k" => {
-                    match args.get(i+1) {
+                    match args.get(i + 1) {
                         Some(s) if !s.starts_with('-') => {
                             i += 1;
                             key = Some(String::from(s));
-                        },
-                        _ => ()
+                        }
+                        _ => (),
                     };
-                },
+                }
                 "-s" => {
-                    start_date = match args.get(i+1) {
+                    start_date = match args.get(i + 1) {
                         Some(s) if !s.starts_with('-') => {
                             i += 1;
                             match s.is_empty() {
                                 false => OptionalDate::Some(String::from(s)),
-                                true => OptionalDate::Ask
+                                true => OptionalDate::Ask,
                             }
-                        },
-                        _ => OptionalDate::Ask
+                        }
+                        _ => OptionalDate::Ask,
                     };
-                },
+                }
                 "-e" => {
-                    end_date = match args.get(i+1) {
+                    end_date = match args.get(i + 1) {
                         Some(s) if !s.starts_with('-') => {
                             i += 1;
                             match s.is_empty() {
                                 false => OptionalDate::Some(String::from(s)),
-                                true => OptionalDate::Ask
+                                true => OptionalDate::Ask,
                             }
-                        },
-                        _ => OptionalDate::Ask
+                        }
+                        _ => OptionalDate::Ask,
                     };
-                },
+                }
                 _ => {
                     println!("Warning: Invalid argument(s)!\n{}", HELP);
                     return Ok(());
                 }
             }
-        } else if i==args.len()-1 {
+        } else if i == args.len() - 1 {
             channel_name = Some(e.clone());
         } else {
             println!("Warning: Invalid argument(s)!\n{}", HELP);
@@ -138,7 +136,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         match DateTime::parse_from_rfc3339(s) {
             Ok(d) => {
                 start_date = OptionalDate::Date(DateTime::<Utc>::from(d));
-            },
+            }
             Err(e) => {
                 Err(format!("Could not parse start timestamp '{}': {}", &s, e))?;
             }
@@ -148,7 +146,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         match DateTime::parse_from_rfc3339(s) {
             Ok(d) => {
                 end_date = OptionalDate::Date(DateTime::<Utc>::from(d));
-            },
+            }
             Err(e) => {
                 Err(format!("Could not parse end timestamp '{}': {}", &s, e))?;
             }
@@ -168,14 +166,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             } else {
                 match meta.len() {
                     0 => return Err("File is empty".into()),
-                    128.. => return Err(format!("File looks too large to only contain the key [len={}]", meta.len()).into()),
+                    128.. => {
+                        return Err(format!(
+                            "File looks too large to only contain the key [len={}]",
+                            meta.len()
+                        )
+                        .into())
+                    }
                     _ => {
                         let mut s = String::new();
                         std::io::BufReader::new(file).read_line(&mut s)?;
                         println!("Successfully loaded API key.");
                         match s.trim().split_once(char::is_whitespace) {
                             Some((first, _)) => String::from(first),
-                            None => s
+                            None => s,
                         }
                     }
                 }
@@ -185,25 +189,29 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     /* Ask for channel name if not specified */
 
-    let channel_name = String::from(match channel_name {
-        Some(name) => name,
-        None => {
-            let mut name;
-            loop {
-                println!("Channel name:");
-                name = String::new();
-                std::io::stdin().read_line(&mut name)?;
-                if name.trim().is_empty() {
-                    println!("Warning: Empty name supplied!");
-                } else if !name.is_ascii() || name.trim().contains(char::is_whitespace) {
-                    println!("Warning: Invalid character supplied!");
-                } else {
-                    break;
+    let channel_name = String::from(
+        match channel_name {
+            Some(name) => name,
+            None => {
+                let mut name;
+                loop {
+                    println!("Channel name:");
+                    name = String::new();
+                    std::io::stdin().read_line(&mut name)?;
+                    if name.trim().is_empty() {
+                        println!("Warning: Empty name supplied!");
+                    } else if !name.is_ascii() || name.trim().contains(char::is_whitespace) {
+                        println!("Warning: Invalid character supplied!");
+                    } else {
+                        break;
+                    }
                 }
+                name
             }
-            name
         }
-    }.trim().trim_matches('@'));
+        .trim()
+        .trim_matches('@'),
+    );
 
     /* Ask for dates if needed */
 
@@ -217,7 +225,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Ok(d) => {
                     start_date = OptionalDate::Date(DateTime::<Utc>::from(d));
                     break;
-                },
+                }
                 Err(e) => {
                     println!("Warning: Could not parse timestamp '{}': {}", &s, e);
                     println!("Note: RFC3339 format required, i.e. 'yyyy-mm-ddTHH:MM:SSZ'");
@@ -235,7 +243,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 Ok(d) => {
                     end_date = OptionalDate::Date(DateTime::<Utc>::from(d));
                     break;
-                },
+                }
                 Err(e) => {
                     println!("Warning: Could not parse timestamp '{}': {}", &s, e);
                     println!("Note: RFC3339 format required, i.e. 'yyyy-mm-ddTHH:MM:SSZ'");
@@ -249,19 +257,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let output = File::create("output.txt")?;
 
     /* Config done, lib call */
-    yt_api_videosum::run(
-        yt_api_videosum::Config {
-            key,
-            channel_name,
-            start_date: match start_date {
-                OptionalDate::Date(d) => Some(d),
-                _ => None
-            },
-            end_date: match end_date {
-                OptionalDate::Date(d) => Some(d),
-                _ => None
-            },
-            output: Some(output)
-        }
-    )
+    yt_api_videosum::run(yt_api_videosum::Config {
+        key,
+        channel_name,
+        start_date: match start_date {
+            OptionalDate::Date(d) => Some(d),
+            _ => None,
+        },
+        end_date: match end_date {
+            OptionalDate::Date(d) => Some(d),
+            _ => None,
+        },
+        output: Some(output),
+    })
 }

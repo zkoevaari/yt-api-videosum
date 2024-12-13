@@ -34,8 +34,8 @@
 */
 
 use std::str::FromStr;
-use chrono::TimeDelta;
 
+use chrono::TimeDelta;
 
 pub fn parse_delta(period: &str) -> Option<TimeDelta> {
     let mut sec = 0;
@@ -55,38 +55,40 @@ pub fn parse_delta(period: &str) -> Option<TimeDelta> {
                 match e {
                     Element::Time => time_marked = true,
                     Element::Period => period_marked = true,
-                    _ => ()
+                    _ => (),
                 }
                 match current {
                     None => current = Some(e),
                     Some(cur) => {
-                        if e<cur {
+                        if e < cur {
                             let pointer = match cur {
                                 Element::Second => {
                                     time_set = true;
                                     Some(&mut sec)
-                                },
+                                }
                                 Element::Minute => {
                                     time_set = true;
                                     Some(&mut min)
-                                },
+                                }
                                 Element::Hour => {
                                     time_set = true;
                                     Some(&mut hrs)
-                                },
+                                }
                                 Element::Day => {
                                     date_set = true;
                                     Some(&mut days)
-                                },
-                                _ => None
+                                }
+                                _ => None,
                             };
                             match pointer {
                                 Some(p) => match i64::from_str(&value) {
                                     Ok(v) => *p = v,
-                                    Err(_) => return None
+                                    Err(_) => return None,
                                 },
-                                None => if !value.is_empty() {
-                                    return None;
+                                None => {
+                                    if !value.is_empty() {
+                                        return None;
+                                    }
                                 }
                             }
                             value = String::new();
@@ -96,34 +98,37 @@ pub fn parse_delta(period: &str) -> Option<TimeDelta> {
                         }
                     }
                 }
-            },
+            }
             None => match current {
                 Some(cur) => match cur {
                     Element::Time | Element::Period => return None,
-                    _ => if c.is_ascii_digit() {
-                        value.insert(0, c)
-                    } else {
-                        return None;
+                    _ => {
+                        if c.is_ascii_digit() {
+                            value.insert(0, c)
+                        } else {
+                            return None;
+                        }
                     }
                 },
-                None => return None
-            }
+                None => return None,
+            },
         }
     }
 
-    if sec >= 60 ||
-        min >= 60 ||
-        hrs >= 24 ||
-        time_set != time_marked ||
-        (!time_set && !date_set) ||
-        !period_marked
+    if sec >= 60
+        || min >= 60
+        || hrs >= 24
+        || time_set != time_marked
+        || (!time_set && !date_set)
+        || !period_marked
     {
         None
     } else {
-        Some(TimeDelta::seconds(((days*24+hrs)*60+min)*60+sec))
+        Some(TimeDelta::seconds(
+            ((days * 24 + hrs) * 60 + min) * 60 + sec,
+        ))
     }
 }
-
 
 #[derive(Copy, Clone, Debug, PartialEq, PartialOrd)]
 enum Element {
@@ -143,23 +148,24 @@ impl Element {
             'H' => Some(Element::Hour),
             'M' => Some(Element::Minute),
             'S' => Some(Element::Second),
-            _ => None
+            _ => None,
         }
     }
 }
-
 
 #[cfg(test)]
 mod period_test {
     use super::*;
 
-
     #[test]
     fn parse_test() {
+        #[rustfmt::skip]
         let tests = [
             ("", None),
 
-            /*base set: acceptable letters (for reference only, as these are included in the extended set)
+            //base set: acceptable letters
+            //    (for reference only, as these are included in the extended set)
+            /*
             ("PD", None),
             ("PT", None),
             ("PTS", None),
@@ -1681,7 +1687,7 @@ mod period_test {
             ("P1TH2S", None),
             ("P1THS2", None),
             ("PT12HS", None),
-            ("PT1H2S", Some(TimeDelta::seconds(60*60+2))),
+            ("PT1H2S", Some(TimeDelta::seconds(60 * 60 + 2))),
             ("PT1HS2", None),
             ("PTH12S", None),
             ("PTH1S2", None),
@@ -1714,7 +1720,7 @@ mod period_test {
             ("1PDTS2", None),
             ("P12DTS", None),
             ("P1D2TS", None),
-            ("P1DT2S", Some(TimeDelta::seconds(24*60*60+2))),
+            ("P1DT2S", Some(TimeDelta::seconds(24 * 60 * 60 + 2))),
             ("P1DTS2", None),
             ("PD12TS", None),
             ("PD1T2S", None),
@@ -1729,7 +1735,7 @@ mod period_test {
             ("1PDTM2", None),
             ("P12DTM", None),
             ("P1D2TM", None),
-            ("P1DT2M", Some(TimeDelta::minutes(24*60+2))),
+            ("P1DT2M", Some(TimeDelta::minutes(24 * 60 + 2))),
             ("P1DTM2", None),
             ("PD12TM", None),
             ("PD1T2M", None),
@@ -1910,7 +1916,7 @@ mod period_test {
             ("P1TH2M3S", None),
             ("P1TH2MS3", None),
             ("P1THM2S3", None),
-            ("PT1H2M3S", Some(TimeDelta::seconds(62*60+3))),
+            ("PT1H2M3S", Some(TimeDelta::seconds(62 * 60 + 3))),
             ("PT1H2MS3", None),
             ("PT1HM2S3", None),
             ("PTH1M2S3", None),
@@ -1957,7 +1963,7 @@ mod period_test {
             ("P1D2T3MS", None),
             ("P1D2TM3S", None),
             ("P1D2TMS3", None),
-            ("P1DT2M3S", Some(TimeDelta::seconds((24*60+2)*60+3))),
+            ("P1DT2M3S", Some(TimeDelta::seconds((24 * 60 + 2) * 60 + 3))),
             ("P1DT2MS3", None),
             ("P1DTM2S3", None),
             ("PD1T2M3S", None),
@@ -1977,7 +1983,7 @@ mod period_test {
             ("P1D2T3HS", None),
             ("P1D2TH3S", None),
             ("P1D2THS3", None),
-            ("P1DT2H3S", Some(TimeDelta::seconds(26*60*60+3))),
+            ("P1DT2H3S", Some(TimeDelta::seconds(26 * 60 * 60 + 3))),
             ("P1DT2HS3", None),
             ("P1DTH2S3", None),
             ("PD1T2H3S", None),
@@ -1997,7 +2003,7 @@ mod period_test {
             ("P1D2T3HM", None),
             ("P1D2TH3M", None),
             ("P1D2THM3", None),
-            ("P1DT2H3M", Some(TimeDelta::minutes(26*60+3))),
+            ("P1DT2H3M", Some(TimeDelta::minutes(26 * 60 + 3))),
             ("P1DT2HM3", None),
             ("P1DTH2M3", None),
             ("PD1T2H3M", None),
@@ -2160,7 +2166,7 @@ mod period_test {
             ("P1D2TH3M4S", None),
             ("P1D2TH3MS4", None),
             ("P1D2THM3S4", None),
-            ("P1DT2H3M4S", Some(TimeDelta::seconds((26*60+3)*60+4))),
+            ("P1DT2H3M4S", Some(TimeDelta::seconds((26 * 60 + 3) * 60 + 4))),
             ("P1DT2H3MS4", None),
             ("P1DT2HM3S4", None),
             ("P1DTH2M3S4", None),
@@ -2223,34 +2229,34 @@ mod period_test {
             ("PT23M", Some(TimeDelta::minutes(23))),
             ("PT23H", Some(TimeDelta::hours(23))),
             ("P23DT", None),
-            ("PT11M23S", Some(TimeDelta::seconds(11*60+23))),
-            ("PT23M11S", Some(TimeDelta::seconds(23*60+11))),
-            ("PT11H23M", Some(TimeDelta::minutes(11*60+23))),
-            ("PT23H11M", Some(TimeDelta::minutes(23*60+11))),
-            ("PT11H23S", Some(TimeDelta::seconds(11*60*60+23))),
-            ("PT23H11S", Some(TimeDelta::seconds(23*60*60+11))),
-            ("PT11H22M23S", Some(TimeDelta::seconds((11*60+22)*60+23))),
-            ("PT11H23M22S", Some(TimeDelta::seconds((11*60+23)*60+22))),
-            ("PT23H11M22S", Some(TimeDelta::seconds((23*60+11)*60+22))),
-            ("P11DT23S", Some(TimeDelta::seconds(11*24*60*60+23))),
-            ("P23DT11S", Some(TimeDelta::seconds(23*24*60*60+11))),
-            ("P11DT23M", Some(TimeDelta::minutes(11*24*60+23))),
-            ("P23DT11M", Some(TimeDelta::minutes(23*24*60+11))),
-            ("P11DT23H", Some(TimeDelta::hours(11*24+23))),
-            ("P23DT11H", Some(TimeDelta::hours(23*24+11))),
-            ("P11DT22M23S", Some(TimeDelta::seconds((11*24*60+22)*60+23))),
-            ("P11DT23M22S", Some(TimeDelta::seconds((11*24*60+23)*60+22))),
-            ("P23DT11M22S", Some(TimeDelta::seconds((23*24*60+11)*60+22))),
-            ("P11DT22H23S", Some(TimeDelta::seconds((11*24+22)*60*60+23))),
-            ("P11DT23H22S", Some(TimeDelta::seconds((11*24+23)*60*60+22))),
-            ("P23DT11H22S", Some(TimeDelta::seconds((23*24+11)*60*60+22))),
-            ("P11DT22H23M", Some(TimeDelta::minutes((11*24+22)*60+23))),
-            ("P11DT23H22M", Some(TimeDelta::minutes((11*24+23)*60+22))),
-            ("P23DT11H22M", Some(TimeDelta::minutes((23*24+11)*60+22))),
-            ("P11DT22H33M23S", Some(TimeDelta::seconds(((11*24+22)*60+33)*60+23))),
-            ("P11DT22H23M33S", Some(TimeDelta::seconds(((11*24+22)*60+23)*60+33))),
-            ("P11DT23H22M33S", Some(TimeDelta::seconds(((11*24+23)*60+22)*60+33))),
-            ("P23DT11H22M33S", Some(TimeDelta::seconds(((23*24+11)*60+22)*60+33))),
+            ("PT11M23S", Some(TimeDelta::seconds(11 * 60 + 23))),
+            ("PT23M11S", Some(TimeDelta::seconds(23 * 60 + 11))),
+            ("PT11H23M", Some(TimeDelta::minutes(11 * 60 + 23))),
+            ("PT23H11M", Some(TimeDelta::minutes(23 * 60 + 11))),
+            ("PT11H23S", Some(TimeDelta::seconds(11 * 60 * 60 + 23))),
+            ("PT23H11S", Some(TimeDelta::seconds(23 * 60 * 60 + 11))),
+            ("PT11H22M23S", Some(TimeDelta::seconds((11 * 60 + 22) * 60 + 23))),
+            ("PT11H23M22S", Some(TimeDelta::seconds((11 * 60 + 23) * 60 + 22))),
+            ("PT23H11M22S", Some(TimeDelta::seconds((23 * 60 + 11) * 60 + 22))),
+            ("P11DT23S", Some(TimeDelta::seconds(11 * 24 * 60 * 60 + 23))),
+            ("P23DT11S", Some(TimeDelta::seconds(23 * 24 * 60 * 60 + 11))),
+            ("P11DT23M", Some(TimeDelta::minutes(11 * 24 * 60 + 23))),
+            ("P23DT11M", Some(TimeDelta::minutes(23 * 24 * 60 + 11))),
+            ("P11DT23H", Some(TimeDelta::hours(11 * 24 + 23))),
+            ("P23DT11H", Some(TimeDelta::hours(23 * 24 + 11))),
+            ("P11DT22M23S", Some(TimeDelta::seconds((11 * 24 * 60 + 22) * 60 + 23))),
+            ("P11DT23M22S", Some(TimeDelta::seconds((11 * 24 * 60 + 23) * 60 + 22))),
+            ("P23DT11M22S", Some(TimeDelta::seconds((23 * 24 * 60 + 11) * 60 + 22))),
+            ("P11DT22H23S", Some(TimeDelta::seconds((11 * 24 + 22) * 60 * 60 + 23))),
+            ("P11DT23H22S", Some(TimeDelta::seconds((11 * 24 + 23) * 60 * 60 + 22))),
+            ("P23DT11H22S", Some(TimeDelta::seconds((23 * 24 + 11) * 60 * 60 + 22))),
+            ("P11DT22H23M", Some(TimeDelta::minutes((11 * 24 + 22) * 60 + 23))),
+            ("P11DT23H22M", Some(TimeDelta::minutes((11 * 24 + 23) * 60 + 22))),
+            ("P23DT11H22M", Some(TimeDelta::minutes((23 * 24 + 11) * 60 + 22))),
+            ("P11DT22H33M23S", Some(TimeDelta::seconds(((11 * 24 + 22) * 60 + 33) * 60 + 23))),
+            ("P11DT22H23M33S", Some(TimeDelta::seconds(((11 * 24 + 22) * 60 + 23) * 60 + 33))),
+            ("P11DT23H22M33S", Some(TimeDelta::seconds(((11 * 24 + 23) * 60 + 22) * 60 + 33))),
+            ("P23DT11H22M33S", Some(TimeDelta::seconds(((23 * 24 + 11) * 60 + 22) * 60 + 33))),
 
             //base set with values, one 24
             ("P24D", Some(TimeDelta::days(24))),
@@ -2258,34 +2264,34 @@ mod period_test {
             ("PT24M", Some(TimeDelta::minutes(24))),
             ("PT24H", None),
             ("P24DT", None),
-            ("PT11M24S", Some(TimeDelta::seconds(11*60+24))),
-            ("PT24M11S", Some(TimeDelta::seconds(24*60+11))),
-            ("PT11H24M", Some(TimeDelta::minutes(11*60+24))),
+            ("PT11M24S", Some(TimeDelta::seconds(11 * 60 + 24))),
+            ("PT24M11S", Some(TimeDelta::seconds(24 * 60 + 11))),
+            ("PT11H24M", Some(TimeDelta::minutes(11 * 60 + 24))),
             ("PT24H11M", None),
-            ("PT11H24S", Some(TimeDelta::seconds(11*60*60+24))),
+            ("PT11H24S", Some(TimeDelta::seconds(11 * 60 * 60 + 24))),
             ("PT24H11S", None),
-            ("PT11H22M24S", Some(TimeDelta::seconds((11*60+22)*60+24))),
-            ("PT11H24M22S", Some(TimeDelta::seconds((11*60+24)*60+22))),
+            ("PT11H22M24S", Some(TimeDelta::seconds((11 * 60 + 22) * 60 + 24))),
+            ("PT11H24M22S", Some(TimeDelta::seconds((11 * 60 + 24) * 60 + 22))),
             ("PT24H11M22S", None),
-            ("P11DT24S", Some(TimeDelta::seconds(11*24*60*60+24))),
-            ("P24DT11S", Some(TimeDelta::seconds(24*24*60*60+11))),
-            ("P11DT24M", Some(TimeDelta::minutes(11*24*60+24))),
-            ("P24DT11M", Some(TimeDelta::minutes(24*24*60+11))),
+            ("P11DT24S", Some(TimeDelta::seconds(11 * 24 * 60 * 60 + 24))),
+            ("P24DT11S", Some(TimeDelta::seconds(24 * 24 * 60 * 60 + 11))),
+            ("P11DT24M", Some(TimeDelta::minutes(11 * 24 * 60 + 24))),
+            ("P24DT11M", Some(TimeDelta::minutes(24 * 24 * 60 + 11))),
             ("P11DT24H", None),
-            ("P24DT11H", Some(TimeDelta::hours(24*24+11))),
-            ("P11DT22M24S", Some(TimeDelta::seconds((11*24*60+22)*60+24))),
-            ("P11DT24M22S", Some(TimeDelta::seconds((11*24*60+24)*60+22))),
-            ("P24DT11M22S", Some(TimeDelta::seconds((24*24*60+11)*60+22))),
-            ("P11DT22H24S", Some(TimeDelta::seconds((11*24+22)*60*60+24))),
+            ("P24DT11H", Some(TimeDelta::hours(24 * 24 + 11))),
+            ("P11DT22M24S", Some(TimeDelta::seconds((11 * 24 * 60 + 22) * 60 + 24))),
+            ("P11DT24M22S", Some(TimeDelta::seconds((11 * 24 * 60 + 24) * 60 + 22))),
+            ("P24DT11M22S", Some(TimeDelta::seconds((24 * 24 * 60 + 11) * 60 + 22))),
+            ("P11DT22H24S", Some(TimeDelta::seconds((11 * 24 + 22) * 60 * 60 + 24))),
             ("P11DT24H22S", None),
-            ("P24DT11H22S", Some(TimeDelta::seconds((24*24+11)*60*60+22))),
-            ("P11DT22H24M", Some(TimeDelta::minutes((11*24+22)*60+24))),
+            ("P24DT11H22S", Some(TimeDelta::seconds((24 * 24 + 11) * 60 * 60 + 22))),
+            ("P11DT22H24M", Some(TimeDelta::minutes((11 * 24 + 22) * 60 + 24))),
             ("P11DT24H22M", None),
-            ("P24DT11H22M", Some(TimeDelta::minutes((24*24+11)*60+22))),
-            ("P11DT22H33M24S", Some(TimeDelta::seconds(((11*24+22)*60+33)*60+24))),
-            ("P11DT22H24M33S", Some(TimeDelta::seconds(((11*24+22)*60+24)*60+33))),
+            ("P24DT11H22M", Some(TimeDelta::minutes((24 * 24 + 11) * 60 + 22))),
+            ("P11DT22H33M24S", Some(TimeDelta::seconds(((11 * 24 + 22) * 60 + 33) * 60 + 24))),
+            ("P11DT22H24M33S", Some(TimeDelta::seconds(((11 * 24 + 22) * 60 + 24) * 60 + 33))),
             ("P11DT24H22M33S", None),
-            ("P24DT11H22M33S", Some(TimeDelta::seconds(((24*24+11)*60+22)*60+33))),
+            ("P24DT11H22M33S", Some(TimeDelta::seconds(((24 * 24 + 11) * 60 + 22) * 60 + 33))),
 
             //base set with values, one 59
             ("P59D", Some(TimeDelta::days(59))),
@@ -2293,34 +2299,34 @@ mod period_test {
             ("PT59M", Some(TimeDelta::minutes(59))),
             ("PT59H", None),
             ("P59DT", None),
-            ("PT11M59S", Some(TimeDelta::seconds(11*60+59))),
-            ("PT59M11S", Some(TimeDelta::seconds(59*60+11))),
-            ("PT11H59M", Some(TimeDelta::minutes(11*60+59))),
+            ("PT11M59S", Some(TimeDelta::seconds(11 * 60 + 59))),
+            ("PT59M11S", Some(TimeDelta::seconds(59 * 60 + 11))),
+            ("PT11H59M", Some(TimeDelta::minutes(11 * 60 + 59))),
             ("PT59H11M", None),
-            ("PT11H59S", Some(TimeDelta::seconds(11*60*60+59))),
+            ("PT11H59S", Some(TimeDelta::seconds(11 * 60 * 60 + 59))),
             ("PT59H11S", None),
-            ("PT11H22M59S", Some(TimeDelta::seconds((11*60+22)*60+59))),
-            ("PT11H59M22S", Some(TimeDelta::seconds((11*60+59)*60+22))),
+            ("PT11H22M59S", Some(TimeDelta::seconds((11 * 60 + 22) * 60 + 59))),
+            ("PT11H59M22S", Some(TimeDelta::seconds((11 * 60 + 59) * 60 + 22))),
             ("PT59H11M22S", None),
-            ("P11DT59S", Some(TimeDelta::seconds(11*24*60*60+59))),
-            ("P59DT11S", Some(TimeDelta::seconds(59*24*60*60+11))),
-            ("P11DT59M", Some(TimeDelta::minutes(11*24*60+59))),
-            ("P59DT11M", Some(TimeDelta::minutes(59*24*60+11))),
+            ("P11DT59S", Some(TimeDelta::seconds(11 * 24 * 60 * 60 + 59))),
+            ("P59DT11S", Some(TimeDelta::seconds(59 * 24 * 60 * 60 + 11))),
+            ("P11DT59M", Some(TimeDelta::minutes(11 * 24 * 60 + 59))),
+            ("P59DT11M", Some(TimeDelta::minutes(59 * 24 * 60 + 11))),
             ("P11DT59H", None),
-            ("P59DT11H", Some(TimeDelta::hours(59*24+11))),
-            ("P11DT22M59S", Some(TimeDelta::seconds((11*24*60+22)*60+59))),
-            ("P11DT59M22S", Some(TimeDelta::seconds((11*24*60+59)*60+22))),
-            ("P59DT11M22S", Some(TimeDelta::seconds((59*24*60+11)*60+22))),
-            ("P11DT22H59S", Some(TimeDelta::seconds((11*24+22)*60*60+59))),
+            ("P59DT11H", Some(TimeDelta::hours(59 * 24 + 11))),
+            ("P11DT22M59S", Some(TimeDelta::seconds((11 * 24 * 60 + 22) * 60 + 59))),
+            ("P11DT59M22S", Some(TimeDelta::seconds((11 * 24 * 60 + 59) * 60 + 22))),
+            ("P59DT11M22S", Some(TimeDelta::seconds((59 * 24 * 60 + 11) * 60 + 22))),
+            ("P11DT22H59S", Some(TimeDelta::seconds((11 * 24 + 22) * 60 * 60 + 59))),
             ("P11DT59H22S", None),
-            ("P59DT11H22S", Some(TimeDelta::seconds((59*24+11)*60*60+22))),
-            ("P11DT22H59M", Some(TimeDelta::minutes((11*24+22)*60+59))),
+            ("P59DT11H22S", Some(TimeDelta::seconds((59 * 24 + 11) * 60 * 60 + 22))),
+            ("P11DT22H59M", Some(TimeDelta::minutes((11 * 24 + 22) * 60 + 59))),
             ("P11DT59H22M", None),
-            ("P59DT11H22M", Some(TimeDelta::minutes((59*24+11)*60+22))),
-            ("P11DT22H33M59S", Some(TimeDelta::seconds(((11*24+22)*60+33)*60+59))),
-            ("P11DT22H59M33S", Some(TimeDelta::seconds(((11*24+22)*60+59)*60+33))),
+            ("P59DT11H22M", Some(TimeDelta::minutes((59 * 24 + 11) * 60 + 22))),
+            ("P11DT22H33M59S", Some(TimeDelta::seconds(((11 * 24 + 22) * 60 + 33) * 60 + 59))),
+            ("P11DT22H59M33S", Some(TimeDelta::seconds(((11 * 24 + 22) * 60 + 59) * 60 + 33))),
             ("P11DT59H22M33S", None),
-            ("P59DT11H22M33S", Some(TimeDelta::seconds(((59*24+11)*60+22)*60+33))),
+            ("P59DT11H22M33S", Some(TimeDelta::seconds(((59 * 24 + 11) * 60 + 22) * 60 + 33))),
 
             //base set with values, one 60
             ("P60D", Some(TimeDelta::days(60))),
@@ -2338,24 +2344,24 @@ mod period_test {
             ("PT11H60M22S", None),
             ("PT60H11M22S", None),
             ("P11DT60S", None),
-            ("P60DT11S", Some(TimeDelta::seconds(60*24*60*60+11))),
+            ("P60DT11S", Some(TimeDelta::seconds(60 * 24 * 60 * 60 + 11))),
             ("P11DT60M", None),
-            ("P60DT11M", Some(TimeDelta::minutes(60*24*60+11))),
+            ("P60DT11M", Some(TimeDelta::minutes(60 * 24 * 60 + 11))),
             ("P11DT60H", None),
-            ("P60DT11H", Some(TimeDelta::hours(60*24+11))),
+            ("P60DT11H", Some(TimeDelta::hours(60 * 24 + 11))),
             ("P11DT22M60S", None),
             ("P11DT60M22S", None),
-            ("P60DT11M22S", Some(TimeDelta::seconds((60*24*60+11)*60+22))),
+            ("P60DT11M22S", Some(TimeDelta::seconds((60 * 24 * 60 + 11) * 60 + 22))),
             ("P11DT22H60S", None),
             ("P11DT60H22S", None),
-            ("P60DT11H22S", Some(TimeDelta::seconds((60*24+11)*60*60+22))),
+            ("P60DT11H22S", Some(TimeDelta::seconds((60 * 24 + 11) * 60 * 60 + 22))),
             ("P11DT22H60M", None),
             ("P11DT60H22M", None),
-            ("P60DT11H22M", Some(TimeDelta::minutes((60*24+11)*60+22))),
+            ("P60DT11H22M", Some(TimeDelta::minutes((60 * 24 + 11) * 60 + 22))),
             ("P11DT22H33M60S", None),
             ("P11DT22H60M33S", None),
             ("P11DT60H22M33S", None),
-            ("P60DT11H22M33S", Some(TimeDelta::seconds(((60*24+11)*60+22)*60+33))),
+            ("P60DT11H22M33S", Some(TimeDelta::seconds(((60 * 24 + 11) * 60 + 22) * 60 + 33))),
 
             //extended set with values
             ("11", None),
@@ -2372,16 +2378,16 @@ mod period_test {
             ("PT11D", None),
             ("P11ST", None),
             ("P11DT", None),
-            ("PT11M22S", Some(TimeDelta::seconds(11*60+22))),
+            ("PT11M22S", Some(TimeDelta::seconds(11 * 60 + 22))),
             ("PT11S22M", None),
-            ("PT11H22M", Some(TimeDelta::minutes(11*60+22))),
+            ("PT11H22M", Some(TimeDelta::minutes(11 * 60 + 22))),
             ("PT11M22H", None),
-            ("PT11H22S", Some(TimeDelta::seconds(11*60*60+22))),
+            ("PT11H22S", Some(TimeDelta::seconds(11 * 60 * 60 + 22))),
             ("PT11S22H", None),
             ("PT11S22S", None),
             ("PT11M22M", None),
             ("PT11H22H", None),
-            ("PT11H22M33S", Some(TimeDelta::seconds((11*60+22)*60+33))),
+            ("PT11H22M33S", Some(TimeDelta::seconds((11 * 60 + 22) * 60 + 33))),
             ("PT11H22S33M", None),
             ("PT11M22H33S", None),
             ("PT11M22S33H", None),
@@ -2393,18 +2399,18 @@ mod period_test {
             ("PT11M22M33S", None),
             ("PT11H22S33S", None),
             ("PT11M22S33S", None),
-            ("P11DT22S", Some(TimeDelta::seconds(11*24*60*60+22))),
-            ("P11DT22M", Some(TimeDelta::minutes(11*24*60+22))),
-            ("P11DT22H", Some(TimeDelta::hours(11*24+22))),
+            ("P11DT22S", Some(TimeDelta::seconds(11 * 24 * 60 * 60 + 22))),
+            ("P11DT22M", Some(TimeDelta::minutes(11 * 24 * 60 + 22))),
+            ("P11DT22H", Some(TimeDelta::hours(11 * 24 + 22))),
             ("P11DT22D", None),
             ("P11ST22D", None),
             ("P11ST22H", None),
             ("P11ST11S", None),
-            ("P11DT22M33S", Some(TimeDelta::seconds((11*24*60+22)*60+33))),
+            ("P11DT22M33S", Some(TimeDelta::seconds((11 * 24 * 60 + 22) * 60 + 33))),
             ("P11DT22S33M", None),
-            ("P11DT22H33S", Some(TimeDelta::seconds((11*24+22)*60*60+33))),
+            ("P11DT22H33S", Some(TimeDelta::seconds((11 * 24 + 22) * 60 * 60 + 33))),
             ("P11DT22S33H", None),
-            ("P11DT22H33M", Some(TimeDelta::minutes((11*24+22)*60+33))),
+            ("P11DT22H33M", Some(TimeDelta::minutes((11 * 24 + 22) * 60 + 33))),
             ("P11DT22M33H", None),
             ("P11DT22H33H", None),
             ("P11DT22D33H", None),
@@ -2412,7 +2418,7 @@ mod period_test {
             ("P11ST22D33H", None),
             ("P11ST22H33D", None),
             ("P11ST22H33M", None),
-            ("P11DT22H33M44S", Some(TimeDelta::seconds(((11*24+22)*60+33)*60+44))),
+            ("P11DT22H33M44S", Some(TimeDelta::seconds(((11 * 24 + 22) * 60 + 33) * 60 + 44))),
             ("P11DT22H33S44M", None),
             ("P11DT33M22H44S", None),
             ("P11DT33M44S22H", None),
@@ -2441,9 +2447,9 @@ mod period_test {
         for (p, _) in tests {
             for i in 0..p.len() {
                 let mut s = p.to_string();
-                s.replace_range(i..i+1, "A");
+                s.replace_range(i..(i + 1), "A");
                 assert_eq!(parse_delta(&s), None, "pattern=\"{}\"", s);
-                s.replace_range(i..i+1, " ");
+                s.replace_range(i..(i + 1), " ");
                 assert_eq!(parse_delta(&s), None, "pattern=\"{}\"", s);
             }
         }
@@ -2454,7 +2460,7 @@ mod period_test {
                 let mut s = p.to_string();
                 s.insert(i, 'A');
                 assert_eq!(parse_delta(&s), None, "pattern=\"{}\"", s);
-                s.replace_range(i..i+1, " ");
+                s.replace_range(i..(i + 1), " ");
                 assert_eq!(parse_delta(&s), None, "pattern=\"{}\"", s);
             }
         }
@@ -2464,7 +2470,7 @@ mod period_test {
             for (i, c) in p.char_indices() {
                 let mut s = String::from(p);
                 if c.is_ascii_alphabetic() {
-                    s.replace_range(i..i+1, c.to_ascii_lowercase().to_string().as_str());
+                    s.replace_range(i..(i + 1), c.to_ascii_lowercase().to_string().as_str());
                     assert_eq!(parse_delta(&s), None, "pattern=\"{}\"", s);
                 }
             }
