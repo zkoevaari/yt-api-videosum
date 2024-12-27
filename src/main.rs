@@ -41,12 +41,6 @@ JSON response to help figuring out what went wrong.
 Created by Zoltan Kovari, 2024.
 ";
 
-/*
-    TODO:
-    - Command line option for output file
-    - Bring out the output stream?
-*/
-
 use std::fs::File;
 use std::io::BufRead;
 
